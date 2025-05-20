@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head> <meta charset="UTF-8">
+    <title>单词消消乐</title>
+    <style>
+        /* CSS样式 */
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        #game-info {
+            margin: 20px 0;
+            font-size: 1.2em;
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(6, 100px);
+            grid-gap: 15px;
+            margin: 0 auto;
+            width: fit-content;
+        }
+        .card {
+            width: 100px;
+            height: 120px;
+            background: #3498db;
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+        .card.flipped { background: #fff; color: #2c3e50; transform: rotateY(180deg); }
+        .card.matched { visibility: hidden; }
+        #restart {
+            margin-top: 20px;
+            padding: 10px 25px;
+            background: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>单词消消乐</h1>
+    <div id="game-info">
+        <span id="score">得分: 0</span>
+        <span id="timer">时间: 60s</span>
+    </div>
+    <div id="game-board"></div>
+    <button id="restart">重新开始</button>
+
+    <script>
+        // JavaScript代码
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameBoard = document.getElementById('game-board');
+            const scoreDisplay = document.getElementById('score');
+            const timerDisplay = document.getElementById('timer');
+            const restartButton = document.getElementById('restart');
+            
+            const wordPairs = [
+                [' device', '设备'],
+                [' power', '能量'],
+                [' switch off', '关闭'],
+                [' household', '家庭'],
+                [' electricity', '电'],
+                [' safety', '安全'],
+                [' light bulb', '电灯'],
+                [' run out of', '耗尽'],
+                [' battery', '电池'],
+                [' instruction', '指示'],
+                [' electrical appliances', '电器'],
+                [' tablet', '平板'],
+                [' climate change', '气候变化'],
+                [' join in', '参与'],
+                [' fridge', '冰箱']
+            ];
+            
+            let cards = [], flippedCards = [], matchedPairs = 0,
+                score = 0, timeLeft = 60, timer, canFlip = true;
+            
+            function initGame() {
+                clearInterval(timer);
+                gameBoard.innerHTML = '';
+                cards = [];
+                flippedCards = [];
+                matchedPairs = 0;
+                score = 0;
+                timeLeft = 60;
+                canFlip = true;
+                
+                scoreDisplay.textContent = '得分: 0';
+                timerDisplay.textContent = '时间: 60s';
+                
+                wordPairs.forEach(pair => {
+                    cards.push(createCard(pair[0]));
+                    cards.push(createCard(pair[1]));
+                });
+                
+                shuffleCards();
+                cards.forEach(card => gameBoard.appendChild(card.element));
+                
+                timer = setInterval(() => {
+                    timeLeft--;
+                    timerDisplay.textContent = `时间: ${timeLeft}s`;
+                    if (timeLeft <= 0) {
+                        clearInterval(timer);
+                        canFlip = false;
+                        alert(`时间到！最终得分: ${score}`);
+                    }
+                }, 1000);
+            }
+
+            function createCard(text) {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                cardElement.textContent = text;
+                const card = { element: cardElement, text: text, isFlipped: false, isMatched: false };
+                cardElement.addEventListener('click', () => flipCard(card));
+                return card;
+            }
+
+            function shuffleCards() {
+                for (let i = cards.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [cards[i], cards[j]] = [cards[j], cards[i]];
+                }
+            }
+
+            function flipCard(card) {
+                if (!canFlip || card.isFlipped || card.isMatched) return;
+                card.isFlipped = true;
+                card.element.classList.add('flipped');
+                flippedCards.push(card);
+                if (flippedCards.length === 2) {
+                    canFlip = false;
+                    setTimeout(checkForMatch, 500);
+                }
+            }
+
+            function checkForMatch() {
+                const [card1, card2] = flippedCards;
+                let isMatch = false;
+                for (const pair of wordPairs) {
+                    if (pair.includes(card1.text) && pair.includes(card2.text) && card1.text !== card2.text) {
+                        isMatch = true;
+                        break;
+                    }
+                }
+                if (isMatch) {
+                    card1.isMatched = true;
+                    card2.isMatched = true;
+                    card1.element.classList.add('matched');
+                    card2.element.classList.add('matched');
+                    matchedPairs++;
+                    score += 10;
+                    scoreDisplay.textContent = `得分: ${score}`;
+                    if (matchedPairs === wordPairs.length) {
+                        clearInterval(timer);
+                        setTimeout(() => alert(`恭喜通关！得分: ${score}`), 500);
+                    }
+                } else {
+                    score = Math.max(0, score - 2);
+                    scoreDisplay.textContent = `得分: ${score}`;
+                    setTimeout(() => {
+                        card1.isFlipped = false;
+                        card2.isFlipped = false;
+                        card1.element.classList.remove('flipped');
+                        card2.element.classList.remove('flipped');
+                    }, 500);
+                }
+                flippedCards = [];
+                canFlip = true;
+            }
+            restartButton.addEventListener('click', initGame);
+            initGame();
+        });
+    </script>
+</body>
+</html>
