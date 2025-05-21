@@ -1,0 +1,272 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Put the Words in Correct Order</title>
+    <style>
+        body {
+            background-color: #FFFFE0;
+            font-family: "Microsoft YaHei", "华文细黑", sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 36px;
+            margin-bottom: 30px;
+        }
+        .game-area {
+            margin-bottom: 20px;
+        }
+        .word-bank, .target-area {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            min-height: 60px;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .word-bank {
+            background-color: #ADD8E6;
+            box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.1), -3px -3px 5px rgba(255, 255, 255, 0.8);
+        }
+        .target-area {
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #668B8B;
+            box-shadow: 3px 3px 0 #87AEAE, -3px -3px 0 #4A6969;
+        }
+        .meaning-preview {
+            font-size: 18px;
+            color: #666;
+            min-height: 30px;
+            padding: 10px;
+        }
+        .word {
+            background-color: #ADD8E6;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: grab;
+            box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.1), -3px -3px 5px rgba(255, 255, 255, 0.8);
+            font-size: 18px;
+            user-select: none;
+        }
+        .word.dragging {
+            opacity: 0.5;
+        }
+        .target-slot {
+            min-width: 60px;
+            height: 40px;
+            border: 1px dashed #668B8B;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .target-slot.filled {
+            border: none;
+            background-color: transparent;
+        }
+        .success-message {
+            color: #4CAF50;
+            font-size: 40px;
+            margin: 20px 0;
+        }
+        .meaning {
+            font-size: 20px;
+            margin-top: 10px;
+        }
+        .completed {
+            font-size: 40px;
+            color: #4CAF50;
+            margin-top: 30px;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Put the Words in Correct Order</h1>
+        <div class="game-area">
+            <div class="word-bank" id="wordBank"></div>
+            <div class="target-area" id="targetArea"></div>
+            <div class="meaning-preview" id="meaningPreview"></div>
+        </div>
+        <div class="result-area" id="resultArea"></div>
+    </div>
+    <audio id="correctSound" src="correct.mp3"></audio>
+    <audio id="wrongSound" src="wrong.mp3"></audio>
+    <audio id="winSound" src="win.mp3"></audio>
+    <script>
+        const sentences = [
+            { sentence: "Electric lights light up homes and streets.", meaning: "电灯照亮了房屋和街道。" },
+            { sentence: "Light bulb is one of the most important inventions in our daily life.", meaning: "灯泡是我们日常生活中最重要的发明之一。" },
+            { sentence: "Lights make the room bright at nighttime.", meaning: "灯光使房间在夜晚变得明亮。" },
+            { sentence: "We can see light bulbs everywhere.", meaning: "我们到处都能看到灯泡。" },
+            { sentence: "If you switch it on, you can read when it gets dark.", meaning: "如果你打开它，天黑时你就可以阅读了。" },
+            { sentence: "Lights show where you can go when necessary.", meaning: "在必要时，灯光指示你可以去哪里。" }
+        ];
+
+        const wordBank = document.getElementById('wordBank');
+        const targetArea = document.getElementById('targetArea');
+        const meaningPreview = document.getElementById('meaningPreview');
+        const resultArea = document.getElementById('resultArea');
+        const correctSound = document.getElementById('correctSound');
+        const wrongSound = document.getElementById('wrongSound');
+        const winSound = document.getElementById('winSound');
+
+        let currentSentenceIndex = 0;
+        let correctOrder = [];
+        let draggedWord = null;
+
+        function initGame() {
+            const currentSentence = sentences[currentSentenceIndex];
+            correctOrder = splitSentence(currentSentence.sentence);
+            
+            const shuffledWords = [...correctOrder].sort(() => Math.random() - 0.5);
+            
+            wordBank.innerHTML = '';
+            shuffledWords.forEach((word, index) => {
+                const wordElement = createWordElement(word, index);
+                wordBank.appendChild(wordElement);
+            });
+            
+            targetArea.innerHTML = '';
+            correctOrder.forEach((_, index) => {
+                const slot = document.createElement('div');
+                slot.className = 'target-slot';
+                slot.dataset.index = index;
+                targetArea.appendChild(slot);
+            });
+            
+            meaningPreview.textContent = currentSentence.meaning;
+            resultArea.innerHTML = '';
+        }
+
+        function splitSentence(sentence) {
+            return sentence.match(/[^\s]+|\s+|[.,!?;:]/g).filter(item => item.trim() !== '');
+        }
+
+        function createWordElement(word, index) {
+            const wordElement = document.createElement('div');
+            wordElement.className = 'word';
+            wordElement.textContent = word;
+            wordElement.draggable = true;
+            wordElement.dataset.word = word;
+            wordElement.dataset.index = index;
+            wordElement.addEventListener('dragstart', handleDragStart);
+            return wordElement;
+        }
+
+        function handleDragStart(e) {
+            draggedWord = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', e.target.dataset.word);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        function handleDragOver(e) {
+            if (e.target.classList.contains('target-slot') && !e.target.hasChildNodes()) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            if (!e.target.classList.contains('target-slot') || e.target.hasChildNodes()) return;
+            
+            const slotIndex = parseInt(e.target.dataset.index);
+            const expectedWord = correctOrder[slotIndex];
+            
+            if (draggedWord.dataset.word === expectedWord) {
+                e.target.appendChild(draggedWord);
+                e.target.classList.add('filled');
+                correctSound.play();
+                
+                if (checkCompletion()) {
+                    showSuccess();
+                }
+            } else {
+                wrongSound.play();
+                shakeElement(draggedWord);
+            }
+        }
+
+        function shakeElement(element) {
+            element.style.animation = 'shake 0.5s';
+            setTimeout(() => {
+                element.style.animation = '';
+            }, 500);
+        }
+
+        function checkCompletion() {
+            const slots = document.querySelectorAll('.target-slot');
+            for (let i = 0; i < slots.length; i++) {
+                if (!slots[i].hasChildNodes() || slots[i].firstChild.dataset.word !== correctOrder[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function showSuccess() {
+            const successMessage = document.createElement('div');
+            successMessage.className = 'success-message';
+            successMessage.textContent = '挑战成功！';
+            
+            const meaning = document.createElement('div');
+            meaning.className = 'meaning';
+            meaning.textContent = sentences[currentSentenceIndex].meaning;
+            
+            resultArea.innerHTML = '';
+            resultArea.appendChild(successMessage);
+            resultArea.appendChild(meaning);
+            
+            winSound.play();
+            
+            setTimeout(() => {
+                currentSentenceIndex++;
+                if (currentSentenceIndex < sentences.length) {
+                    initGame();
+                } else {
+                    showCompletion();
+                }
+            }, 2000);
+        }
+
+        function showCompletion() {
+            resultArea.innerHTML = '';
+            const completed = document.createElement('div');
+            completed.className = 'completed';
+            completed.textContent = '全部完成！';
+            resultArea.appendChild(completed);
+        }
+
+        targetArea.addEventListener('dragover', handleDragOver);
+        targetArea.addEventListener('drop', handleDrop);
+        document.addEventListener('dragend', handleDragEnd);
+
+        initGame();
+    </script>
+</body>
+</html>
